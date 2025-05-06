@@ -97,10 +97,25 @@ lemma commit_closed:
     qed
   qed
 
+definition ancestors :: "git \<Rightarrow> commit \<Rightarrow> commit set"
+  where "ancestors g c \<equiv> (graph_edges (graph g))\<^sup>* `` {c}"
+
+definition mergable :: "git \<Rightarrow> commit set \<Rightarrow> bool"
+  where "mergable g C \<equiv> (\<exists>c1 \<in> C. \<exists>c2 \<in> C. c1 \<noteq> c2) \<and> (\<forall>c1 \<in> C. \<forall>c2 \<in> C. c1 \<noteq> c2 \<longrightarrow> c2 \<notin> ancestors g c1 \<and> c1 \<notin> ancestors g c2) \<and> C \<subseteq> graph_nodes (graph g)"
+
+lemma mergableI:
+  assumes c1_mem: "c1 \<in> C"
+      and c2_mem: "c2 \<in> C"
+      and neq: "c1 \<noteq> c2"
+      and no_ancestors1: "\<And>c1 c2. c1 \<noteq> c2 \<Longrightarrow> c2 \<notin> ancestors g c1"
+      and no_ancestors2: "\<And>c1 c2. c1 \<noteq> c2 \<Longrightarrow> c1 \<notin> ancestors g c2"
+      and subset: "C \<subseteq> graph_nodes (graph g)"
+  shows "mergable g C"
+  using assms unfolding mergable_def by blast
+
 definition merge :: "git \<Rightarrow> commit set \<Rightarrow> (commit \<times> git) option"
-  where "merge g parents \<equiv> if parents = {} \<or> (\<exists>c. parents = {c}) \<or> (\<exists>c \<in> parents. c \<notin> graph_nodes (graph g))
-    then None
-    else Some (
+  where "merge g parents \<equiv> if mergable g parents
+    then Some (
       commit_next g,
       (
         (
@@ -109,7 +124,8 @@ definition merge :: "git \<Rightarrow> commit set \<Rightarrow> (commit \<times>
         ),
         Suc (commit_next g)
       )
-    )"
+    )
+    else None"
 
 lemma merge_eq_SomeE:
   assumes "merge g C = Some (c, g')"
