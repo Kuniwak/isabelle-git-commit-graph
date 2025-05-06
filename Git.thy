@@ -129,19 +129,8 @@ definition merge :: "git \<Rightarrow> commit set \<Rightarrow> (commit \<times>
 
 lemma merge_eq_SomeE:
   assumes "merge g C = Some (c, g')"
-  shows "C \<subseteq> graph_nodes (graph g)"
-    and "C \<noteq> {}"
-    and "\<nexists>c. C = {c}"
-    and "c = commit_next g"
-  proof -
-    show "C \<subseteq> graph_nodes (Git.graph g)" using assms unfolding merge_def by (meson option.distinct(1) subsetI)
-  next
-    show "C \<noteq> {}" using assms unfolding merge_def by (meson option.distinct(1))
-  next
-    show "\<nexists>c. C = {c}" using assms unfolding merge_def by fastforce
-  next
-    show "c = commit_next g" using assms unfolding merge_def by (metis Pair_inject option.discI option.inject)
-  qed
+  shows "mergable g C"
+  using assms unfolding merge_def by (meson option.distinct(1))
 
 lemma merge_closed:
   assumes git: "git g"
@@ -156,11 +145,17 @@ lemma merge_closed:
       Suc (commit_next g)
     )" using merge_eq unfolding merge_def by (metis option.distinct(1) option.inject prod.sel(2))
     show ?thesis unfolding git_def g'_eq proof auto
-      show "dag (insert (commit_next g) (graph_nodes (Git.graph g)), Pair (commit_next g) ` C \<union> graph_edges (Git.graph g))" using git_dag[OF git] merge_eq_SomeE(1)[OF merge_eq] proof (rule dag_insert_new_edges)
+      show "dag (insert (commit_next g) (graph_nodes (Git.graph g)), Pair (commit_next g) ` C \<union> graph_edges (Git.graph g))" using git_dag[OF git] proof (rule dag_insert_new_edges)
+        show "C \<subseteq> graph_nodes (Git.graph g)" using merge_eq_SomeE[OF merge_eq] unfolding mergable_def by simp
+      next
         show "commit_next g \<notin> graph_nodes (Git.graph g)" using git_Suc_funpow_nmemI[OF git, where ?n=0] by simp
       qed
     next      
-      show "ex_min (insert (commit_next g) (graph_nodes (Git.graph g)), Pair (commit_next g) ` C \<union> graph_edges (Git.graph g))" using dag_graph[OF git_dag[OF git]] git_ex_min[OF git] merge_eq_SomeE(2)[OF merge_eq] merge_eq_SomeE(1)[OF merge_eq] proof (rule ex_min_insert_new_edges)
+      show "ex_min (insert (commit_next g) (graph_nodes (Git.graph g)), Pair (commit_next g) ` C \<union> graph_edges (Git.graph g))" using dag_graph[OF git_dag[OF git]] git_ex_min[OF git] proof (rule ex_min_insert_new_edges)
+        show "C \<noteq> {}" using merge_eq_SomeE[OF merge_eq] unfolding mergable_def by blast
+      next
+        show "C \<subseteq> graph_nodes (Git.graph g)" using merge_eq_SomeE[OF merge_eq] unfolding mergable_def by simp
+      next
         show "commit_next g \<notin> graph_nodes (Git.graph g)" using git_Suc_funpow_nmemI[OF git, where ?n=0] by simp
       qed
     next
