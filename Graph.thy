@@ -76,6 +76,10 @@ lemma ex_min_insert_new_edges:
     qed
   qed
 
+lemma ex_min_singleton: "ex_min ({x}, {})"
+  unfolding ex_min_def by fastforce
+
+
 definition dag :: "'a graph \<Rightarrow> bool"
   where "dag g \<equiv> graph g \<and> acyclic (graph_edges g)"
 
@@ -89,7 +93,7 @@ lemma dag_graph:
   shows "graph g"
   using assms unfolding dag_def by simp
 
-lemma empty_dag: "dag ({}, {})"
+lemma dag_empty: "dag ({}, {})"
   unfolding dag_def graph_def using wf_iff_acyclic_if_finite by force
 
 lemma Id_nmem_trancl_un1:
@@ -154,4 +158,8 @@ lemma dag_insert_new_edges:
       qed
     qed
   qed
+
+lemma dag_singleton: "dag ({x}, {})"
+  using dag_insert_new_edges[where ?N = "{}", OF dag_empty] by fastforce
+
 end
