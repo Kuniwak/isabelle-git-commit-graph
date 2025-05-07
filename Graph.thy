@@ -2,6 +2,23 @@ theory Graph
   imports Main
 begin
 
+lemma Id_nmem_trancl_un1:
+  assumes "\<And>n'. (n', n) \<notin> X1"
+      and "\<And>n'. (n', n) \<notin> X2"
+  shows "(n, n) \<notin> (X1 \<union> X2)\<^sup>+"
+  by (meson UnE assms tranclD2)
+
+lemma Id_nmem_trancl_un2:
+  assumes "\<And>n'. (n, n') \<notin> X1"
+      and "\<And>n'. (n, n') \<notin> X2"
+  shows "(n, n) \<notin> (X1 \<union> X2)\<^sup>+"
+  by (meson UnE assms tranclD)
+
+lemma mem_tranclE:
+  assumes "(y, z) \<in> (insert (x, y) R)\<^sup>+"
+  shows "y = x \<or> (y, z) \<in> R\<^sup>*"
+  by (smt (verit) Transitive_Closure.rtranclp_rtrancl_eq assms insert_iff prod.inject rtrancl.rtrancl_into_rtrancl rtrancl_eq_or_trancl trancl_induct)
+
 type_synonym 'a graph = "'a set \<times> 'a rel"
 
 definition graph_nodes :: "'a graph \<Rightarrow> 'a set"
@@ -32,6 +49,17 @@ lemma finite_graph_edges:
     thus ?thesis using finite_cartesian_product by (metis graph_def finite_subset graph)
   qed
 
+lemma mem_graph_nodesI:
+  assumes graph: "graph g"
+      and mem: "(n, n') \<in> graph_edges g"
+  shows "n \<in> graph_nodes g"
+    and "n' \<in> graph_nodes g"
+  proof -
+    show "n \<in> graph_nodes g" using graph unfolding graph_def using FieldI1 mem by fastforce
+  next
+    show "n' \<in> graph_nodes g" using graph unfolding graph_def using FieldI2 mem by fastforce
+  qed
+
 lemma nmem_graph_edgesI:
   assumes graph: "graph g"
     and nmem: "n \<notin> graph_nodes g"
@@ -43,7 +71,7 @@ lemma nmem_graph_edgesI:
   next
     fix n'
     show "(n', n) \<notin> graph_edges g" using graph nmem unfolding graph_def graph_edges_def graph_nodes_def by (meson FieldI2 subset_iff)
-  qed
+  qed  
 
 definition less_set :: "'a graph \<Rightarrow> 'a \<Rightarrow> 'a set"
   where "less_set g c \<equiv> (graph_edges g)\<^sup>+ `` {c}"
@@ -79,7 +107,6 @@ lemma ex_min_insert_new_edges:
 lemma ex_min_singleton: "ex_min ({x}, {})"
   unfolding ex_min_def by fastforce
 
-
 definition dag :: "'a graph \<Rightarrow> bool"
   where "dag g \<equiv> graph g \<and> acyclic (graph_edges g)"
 
@@ -96,17 +123,32 @@ lemma dag_graph:
 lemma dag_empty: "dag ({}, {})"
   unfolding dag_def graph_def using wf_iff_acyclic_if_finite by force
 
-lemma Id_nmem_trancl_un1:
-  assumes "\<And>n'. (n', n) \<notin> X1"
-      and "\<And>n'. (n', n) \<notin> X2"
-  shows "(n, n) \<notin> (X1 \<union> X2)\<^sup>+"
-  by (meson UnE assms tranclD2)
+lemma nmem_rtrancl_graph_edgesI:
+  assumes dag: "dag g"
+    and nmem: "n \<notin> graph_nodes g"
+  shows "\<And>n'. n \<noteq> n' \<Longrightarrow> (n, n') \<notin> (graph_edges g)\<^sup>*"
+    and "\<And>n'. n \<noteq> n' \<Longrightarrow> (n', n) \<notin> (graph_edges g)\<^sup>*"
+  proof auto
+    fix n'
+    assume "n \<noteq> n'" "(n, n') \<in> (graph_edges g)\<^sup>*"
+    thus False by (meson converse_rtranclE dag dag_def nmem nmem_graph_edgesI(1))
+  next
+    fix n'
+    assume "n \<noteq> n'" "(n', n) \<in> (graph_edges g)\<^sup>*"
+    thus False by (meson dag dag_graph nmem nmem_graph_edgesI(2) rtrancl.cases)
+  qed
 
-lemma Id_nmem_trancl_un2:
-  assumes "\<And>n'. (n, n') \<notin> X1"
-      and "\<And>n'. (n, n') \<notin> X2"
-  shows "(n, n) \<notin> (X1 \<union> X2)\<^sup>+"
-  by (meson UnE assms tranclD)
+lemma mem_rtrancl_graph_edgesE:
+  assumes dag: "dag g"
+    and mem: "(n, n') \<in> (graph_edges g)\<^sup>*"
+    and neq: "n \<noteq> n'"
+  shows "n \<in> graph_nodes g"
+    and "n' \<in> graph_nodes g"
+  proof -
+    show "n \<in> graph_nodes g" by (metis dag mem neq nmem_rtrancl_graph_edgesI(1))
+  next
+    show "n' \<in> graph_nodes g" by (metis dag mem neq nmem_rtrancl_graph_edgesI(2))
+  qed
 
 lemma dag_insert_new_edges:
   assumes dag: "dag g"

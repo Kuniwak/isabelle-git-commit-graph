@@ -100,6 +100,34 @@ lemma commit_closed:
 definition ancestors :: "git \<Rightarrow> commit \<Rightarrow> commit set"
   where "ancestors g c \<equiv> (graph_edges (graph g))\<^sup>* `` {c}"
 
+lemma ancestors_eq: "ancestors g c = insert c ((graph_edges (graph g))\<^sup>+ `` {c})" unfolding ancestors_def rtrancl_trancl_reflcl by blast
+
+lemma ancestors_commit:
+  assumes git: "git g"
+      and c_mem: "c \<in> graph_nodes (graph g)"
+  shows "ancestors (snd (the (commit g c))) c = ancestors g c"
+  proof -
+    have fst_eq: "fst (the (commit g c)) = commit_next g" unfolding commit_def using c_mem by simp
+    have snd_eq: "snd (the (commit g c)) = (
+        (
+          insert (commit_next g) (graph_nodes (graph g)),
+          insert (commit_next g, c) (graph_edges (graph g))
+        ),
+        Suc (commit_next g)
+      )" unfolding commit_def using c_mem by simp
+    show ?thesis unfolding ancestors_eq snd_eq fst_eq proof auto
+      fix c'
+      assume 1: "(c, c') \<in> (insert (commit_next g, c) (graph_edges (Git.graph g)))\<^sup>+"
+        and neq: "c' \<noteq> c"
+      have "(c, c') \<in> (graph_edges (Git.graph g))\<^sup>*" using mem_tranclE[OF 1] by (metis Suc_funpow add.left_neutral c_mem git git_def)
+      thus "(c, c') \<in> (graph_edges (Git.graph g))\<^sup>+" using neq by (metis rtrancl_eq_or_trancl)
+    next
+      fix c'
+      assume 1: "(c, c') \<in> (graph_edges (Git.graph g))\<^sup>+"
+      thus "(c, c') \<in> (insert (commit_next g, c) (graph_edges (Git.graph g)))\<^sup>+" by (simp add: trancl_insert)
+    qed
+  qed
+
 definition mergable :: "git \<Rightarrow> commit set \<Rightarrow> bool"
   where "mergable g C \<equiv> (\<exists>c1 \<in> C. \<exists>c2 \<in> C. c1 \<noteq> c2) \<and> (\<forall>c1 \<in> C. \<forall>c2 \<in> C. c1 \<noteq> c2 \<longrightarrow> c2 \<notin> ancestors g c1 \<and> c1 \<notin> ancestors g c2) \<and> C \<subseteq> graph_nodes (graph g)"
 
@@ -107,8 +135,7 @@ lemma mergableI:
   assumes c1_mem: "c1 \<in> C"
       and c2_mem: "c2 \<in> C"
       and neq: "c1 \<noteq> c2"
-      and no_ancestors1: "\<And>c1 c2. \<lbrakk> c1 \<in> C; c2 \<in> C; c1 \<noteq> c2 \<rbrakk> \<Longrightarrow> c2 \<notin> ancestors g c1"
-      and no_ancestors2: "\<And>c1 c2. \<lbrakk> c1 \<in> C; c2 \<in> C; c1 \<noteq> c2 \<rbrakk> \<Longrightarrow> c1 \<notin> ancestors g c2"
+      and no_ancestors: "\<And>c1 c2. \<lbrakk> c1 \<in> C; c2 \<in> C; c1 \<noteq> c2 \<rbrakk> \<Longrightarrow> c1 \<notin> ancestors g c2"
       and subset: "C \<subseteq> graph_nodes (graph g)"
   shows "mergable g C"
   using assms unfolding mergable_def by blast
@@ -122,8 +149,7 @@ lemma mergableE2:
       and "c1 \<in> C"
       and "c2 \<in> C"
       and "c1 \<noteq> c2"
-  shows "c2 \<notin> ancestors g c1"
-    and "c1 \<notin> ancestors g c2"
+  shows "c1 \<notin> ancestors g c2"
     and "C \<subseteq> graph_nodes (graph g)"
   using assms unfolding mergable_def by simp_all
 
